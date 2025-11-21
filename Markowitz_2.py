@@ -70,8 +70,42 @@ class MyPortfolio:
         """
         TODO: Complete Task 4 Below
         """
-        
-        
+        returns = self.returns[assets]
+        mom_lb = 125
+        vol_lb = 55
+        rf_annual = 0.0
+        sharpe_exponent = 1.5
+        sigma_weight = -0.6
+
+        start_idx = max(vol_lb, mom_lb) + 1
+        for i in range(start_idx, len(self.price)):
+
+            vol_window = returns.iloc[i - vol_lb : i]
+            sigma_annual = vol_window.std() * np.sqrt(252)
+            vol_median = sigma_annual.median()
+            sigma_annual = sigma_weight * sigma_annual + (1 - sigma_weight) * vol_median
+            sigma_annual = sigma_annual.replace(0, np.nan)
+
+            latest = self.price[assets].iloc[i - 1]
+            past = self.price[assets].iloc[i - mom_lb - 1]
+            total_return = (latest / past - 1).fillna(0.0)
+            annual_return = (1 + total_return)**(252 / mom_lb) - 1
+
+            excess_return = annual_return - rf_annual
+            sharpe_proxy = ((excess_return.clip(lower=0.0) / sigma_annual)**sharpe_exponent).fillna(0.0)
+
+            inv_vol_weights = 1 / sigma_annual
+            inv_vol_weights /= inv_vol_weights.sum()
+            raw_w = sharpe_proxy * inv_vol_weights
+
+            if raw_w.sum() > 0:
+                w = raw_w / raw_w.sum()
+            else:
+                w = pd.Series(1.0 / len(assets), index=assets)
+
+            self.portfolio_weights.loc[self.price.index[i]] = 0.0
+            for asset, weight in w.items():
+                self.portfolio_weights.at[self.price.index[i], asset] = weight
         """
         TODO: Complete Task 4 Above
         """

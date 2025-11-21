@@ -62,7 +62,7 @@ class EqualWeightPortfolio:
         """
         TODO: Complete Task 1 Below
         """
-
+        self.portfolio_weights[assets] = 1.0 / len(assets)
         """
         TODO: Complete Task 1 Above
         """
@@ -87,7 +87,7 @@ class EqualWeightPortfolio:
         # Ensure portfolio returns are calculated
         if not hasattr(self, "portfolio_returns"):
             self.calculate_portfolio_returns()
-
+        
         return self.portfolio_weights, self.portfolio_returns
 
 
@@ -113,9 +113,13 @@ class RiskParityPortfolio:
         """
         TODO: Complete Task 2 Below
         """
-
-
-
+        for i in range(self.lookback + 1, len(df)):
+            window = df_returns[assets].iloc[i - self.lookback : i]
+            sigma = window.std()
+            sigma = sigma.replace(0, np.nan)
+            inv_sigma = 1 / sigma
+            weights = inv_sigma / inv_sigma.sum()
+            self.portfolio_weights.loc[df.index[i], assets] = weights
         """
         TODO: Complete Task 2 Above
         """
@@ -187,12 +191,14 @@ class MeanVariancePortfolio:
                 """
                 TODO: Complete Task 3 Below
                 """
-
-                # Sample Code: Initialize Decision w and the Objective
-                # NOTE: You can modify the following code
-                w = model.addMVar(n, name="w", ub=1)
-                model.setObjective(w.sum(), gp.GRB.MAXIMIZE)
-
+                w = model.addMVar(n, lb=0.0, ub=1.0, name="w")
+                mean_term = w @ mu
+                risk_term = gp.quicksum(
+                    gp.quicksum(Sigma[i, j] * w[i] * w[j] for j in range(n))
+                    for i in range(n)
+                )
+                model.setObjective(mean_term - (gamma / 2) * risk_term, gp.GRB.MAXIMIZE)
+                model.addConstr(w.sum() == 1, "budget")
                 """
                 TODO: Complete Task 3 Above
                 """
